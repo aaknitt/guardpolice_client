@@ -91,17 +91,17 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		##################################################
 		self.gui_samp_rate = gui_samp_rate = 2400000.0
 		self.gui_gain = gui_gain = 10.0
-		#self.freq = freq = 162e6
-		self.freq = freq = 126.475e6
+		#self.center_freq = freq = 162e6
+		self.center_freq = center_freq = 126.475e6
 		self.variable_low_pass_filter_taps_0 = variable_low_pass_filter_taps_0 = firdes.low_pass(1.0, gui_samp_rate, 10000,30000, window.WIN_HAMMING, 6.76)
 		self.timestamp = timestamp = datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H:%M:%S')
-		self.str_freq = str_freq = str(freq)
+		self.str_center_freq = str_center_freq = str(center_freq)
 		self.rootdir = rootdir = str(os.path.expanduser("~")+"\\")
 		self.record_file_path = record_file_path = "data\\"
-		self.filename = filename = str(int(freq))+"Hz_"+str(int(gui_samp_rate))+"sps_"+str(gui_gain)+"dB_"
+		self.filename = filename = 'recordings/' + str(int(time.time()))+'.wav'
 		self.Probe1 = Probe1 = -100
 		self.Probe2 = Probe2 = -100
-		self.wav_file_name = wav_file_name = 'C:\\gnuradiofiles\\test1.wav'
+		self.wav_file_name = wav_file_name = 'test1.wav'
 		self.last_record_time = last_record_time = 0
 		self.recording = recording = False
 		self.min_sig_dB = 100
@@ -179,7 +179,7 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		self._soapy_rtlsdr_source_0_setting_keys = [a.key for a in self.soapy_rtlsdr_source_0.get_setting_info()]
 
 		self.soapy_rtlsdr_source_0.set_sample_rate(0, gui_samp_rate)
-		self.soapy_rtlsdr_source_0.set_frequency(0, freq)
+		self.soapy_rtlsdr_source_0.set_frequency(0, center_freq)
 		self.soapy_rtlsdr_source_0.set_frequency_correction(0, 0)
 		self.set_soapy_rtlsdr_source_0_bias(bool(False))
 		self._soapy_rtlsdr_source_0_gain_value = gui_gain
@@ -221,7 +221,7 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
 			8192, #size
 			window.WIN_BLACKMAN_hARRIS, #wintype
-			freq, #fc
+			center_freq, #fc
 			gui_samp_rate, #bw
 			"", #name
 			1,
@@ -264,16 +264,16 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 			self.tabs_grid_layout_0.setRowStretch(r, 1)
 		for c in range(0, 4):
 			self.tabs_grid_layout_0.setColumnStretch(c, 1)
-		self.qtgui_edit_box_msg_0_0 = qtgui.edit_box_msg(qtgui.FLOAT, str(freq), 'Freq', True, True, 'freq', None)
+		self.qtgui_edit_box_msg_0_0 = qtgui.edit_box_msg(qtgui.FLOAT, str(center_freq), 'Freq', True, True, 'freq', None)
 		self._qtgui_edit_box_msg_0_0_win = sip.wrapinstance(self.qtgui_edit_box_msg_0_0.qwidget(), Qt.QWidget)
 		self.tabs_grid_layout_0.addWidget(self._qtgui_edit_box_msg_0_0_win, 1, 0, 1, 1)
 		for r in range(1, 2):
 			self.tabs_grid_layout_0.setRowStretch(r, 1)
 		for c in range(0, 1):
 			self.tabs_grid_layout_0.setColumnStretch(c, 1)
-		self.freq_xlating_fir_filter_xxx_0_0 = filter.freq_xlating_fir_filter_ccc(1, variable_low_pass_filter_taps_0, 400000, gui_samp_rate)
+		self.center_freq_xlating_fir_filter_xxx_0_0 = filter.freq_xlating_fir_filter_ccc(1, variable_low_pass_filter_taps_0, 400000, gui_samp_rate)
 		self.blocks_wavfile_sink_0 = blocks.wavfile_sink(
-			filename+str(datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S'))+".wav",
+			filename,
 			2,
 			int(gui_samp_rate),
 			blocks.FORMAT_WAV,
@@ -282,7 +282,7 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 			)
 		self.blocks_sub_xx_0 = blocks.sub_ff(1)
 		self.blocks_selector_0 = blocks.selector(gr.sizeof_gr_complex*1,0,0)
-		self.blocks_selector_0.set_enabled(True)
+		self.blocks_selector_0.set_enabled(False)
 		self.blocks_null_sink_0 = blocks.null_sink(gr.sizeof_gr_complex*1)
 		self.blocks_nlog10_ff_0_0 = blocks.nlog10_ff(1, 1, 0)
 		self.blocks_nlog10_ff_0 = blocks.nlog10_ff(1, 1, 0)
@@ -354,10 +354,10 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		self.connect((self.blocks_selector_0, 1), (self.blocks_null_sink_0, 0))
 		#self.blocks_selector_0.set_output_index(1)  #null sink by default
 		self.connect((self.blocks_sub_xx_0, 0), (self.blocks_moving_average_xx_0_0, 0))
-		self.connect((self.freq_xlating_fir_filter_xxx_0_0, 0), (self.blocks_complex_to_mag_squared_0, 0))
+		self.connect((self.center_freq_xlating_fir_filter_xxx_0_0, 0), (self.blocks_complex_to_mag_squared_0, 0))
 		self.connect((self.soapy_rtlsdr_source_0, 0), (self.blocks_complex_to_mag_squared_0_0, 0))
 		self.connect((self.soapy_rtlsdr_source_0, 0), (self.blocks_selector_0, 0))
-		self.connect((self.soapy_rtlsdr_source_0, 0), (self.freq_xlating_fir_filter_xxx_0_0, 0))
+		self.connect((self.soapy_rtlsdr_source_0, 0), (self.center_freq_xlating_fir_filter_xxx_0_0, 0))
 		self.connect((self.soapy_rtlsdr_source_0, 0), (self.qtgui_freq_sink_x_0, 0))
 
 
@@ -374,11 +374,11 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 
 	def set_gui_samp_rate(self, gui_samp_rate):
 		self.gui_samp_rate = gui_samp_rate
-		self.set_filename(str(int(self.freq))+"Hz_"+str(int(self.gui_samp_rate))+"sps_"+str(self.gui_gain)+"dB_")
+		self.set_filename(str(int(self.center_freq))+"Hz_"+str(int(self.gui_samp_rate))+"sps_"+str(self.gui_gain)+"dB_")
 		self._gui_samp_rate_callback(self.gui_samp_rate)
 		self.set_variable_low_pass_filter_taps_0(firdes.low_pass(1.0, self.gui_samp_rate, 10000, 30000, window.WIN_HAMMING, 6.76))
 		self.blocks_multiply_const_vxx_0_1_0.set_k((1/self.gui_samp_rate))
-		self.qtgui_freq_sink_x_0.set_frequency_range(self.freq, self.gui_samp_rate)
+		self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq, self.gui_samp_rate)
 		self.soapy_rtlsdr_source_0.set_sample_rate(0, self.gui_samp_rate)
 
 	def get_gui_gain(self):
@@ -386,25 +386,25 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 
 	def set_gui_gain(self, gui_gain):
 		self.gui_gain = gui_gain
-		self.set_filename(str(int(self.freq))+"Hz_"+str(int(self.gui_samp_rate))+"sps_"+str(self.gui_gain)+"dB_")
+		self.set_filename(str(int(self.center_freq))+"Hz_"+str(int(self.gui_samp_rate))+"sps_"+str(self.gui_gain)+"dB_")
 		self.set_soapy_rtlsdr_source_0_gain(0, 'TUNER', self.gui_gain)
 
 	def get_freq(self):
-		return self.freq
+		return self.center_freq
 
 	def set_freq(self, freq):
-		self.freq = freq
-		self.set_filename(str(int(self.freq))+"Hz_"+str(int(self.gui_samp_rate))+"sps_"+str(self.gui_gain)+"dB_")
-		self.set_str_freq(str(self.freq))
-		self.qtgui_freq_sink_x_0.set_frequency_range(self.freq, self.gui_samp_rate)
-		self.soapy_rtlsdr_source_0.set_frequency(0, self.freq)
+		self.center_freq = freq
+		self.set_filename(str(int(self.center_freq))+"Hz_"+str(int(self.gui_samp_rate))+"sps_"+str(self.gui_gain)+"dB_")
+		self.set_str_freq(str(self.center_freq))
+		self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq, self.gui_samp_rate)
+		self.soapy_rtlsdr_source_0.set_frequency(0, self.center_freq)
 
 	def get_variable_low_pass_filter_taps_0(self):
 		return self.variable_low_pass_filter_taps_0
 
 	def set_variable_low_pass_filter_taps_0(self, variable_low_pass_filter_taps_0):
 		self.variable_low_pass_filter_taps_0 = variable_low_pass_filter_taps_0
-		self.freq_xlating_fir_filter_xxx_0_0.set_taps(self.variable_low_pass_filter_taps_0)
+		self.center_freq_xlating_fir_filter_xxx_0_0.set_taps(self.variable_low_pass_filter_taps_0)
 
 	def get_timestamp(self):
 		return self.timestamp
@@ -413,10 +413,10 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		self.timestamp = timestamp
 
 	def get_str_freq(self):
-		return self.str_freq
+		return self.str_center_freq
 
 	def set_str_freq(self, str_freq):
-		self.str_freq = str_freq
+		self.str_center_freq = str_freq
 
 	def get_rootdir(self):
 		return self.rootdir
@@ -449,12 +449,12 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		#print(self.SNR_dB.level())
 		if self.sig_dB.level() < self.min_sig_dB:
 			self.min_sig_dB = self.sig_dB.level()
-		print("SNR:",self.sig_dB.level() - self.min_sig_dB," dB")
+		#print("SNR:",round(self.sig_dB.level() - self.min_sig_dB,1)," dB")
 		if self.sig_dB.level()>self.min_sig_dB + 10:
 			self.last_record_time = time.time()
 			if self.recording == False:
 				self.recording = True
-				self.set_wav_file_name('C:\\gnuradiofiles\\'+str(int(time.time()))+'.wav')
+				self.set_wav_file_name('recordings/'+str(int(time.time()))+'.wav')
 				self.blocks_wavfile_sink_0.open(self.wav_file_name)
 				self.blocks_selector_0.set_enabled(True)
 				#self.blocks_selector_0.set_output_index(0)  #connect to wav file sink
@@ -465,7 +465,7 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 				print("closing file " + self.wav_file_name)
 				self.blocks_selector_0.set_enabled(False)
 				self.blocks_wavfile_sink_0.close()
-				subprocess.Popen(['python', 'c:\\gnuradiofiles\\demod_am_from_wav.py','--input-file',self.wav_file_name])
+				subprocess.Popen(['python', 'demod_am_from_wav.py','--input-file',self.wav_file_name])
 				#self.blocks_selector_0.set_output_index(1)  #connect to null sink
 				
 

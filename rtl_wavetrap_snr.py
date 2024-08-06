@@ -30,6 +30,7 @@ import sip
 import time
 import threading
 import subprocess
+import RPi.GPIO as GPIO
 
 '''
 Built on GNUradio 3.10
@@ -37,11 +38,12 @@ TO DO
 - *Stop and start capture based on SNR trigger and release time
   - *New file for each capture
 - *Automatically call script to created demodulated audio wav file after capture
-- Run on Pi
+- *Run on Pi
 - SNR Threshold and release times configurable
 - Add center frequency, sample rate, trigger frequency to file name
 - Ungate 1 PPS pulse prior to release time
 - Filename renamed to time of 1 PPS pulse
+- AGC to address clipped audio with strong signals
 - Improve squelch
   - debounce before opening?
   - something that adjusts more to recent noise floor rather than using all-time low value
@@ -52,6 +54,11 @@ TO DO
 
 
 '''
+
+pps_gate_control = 2
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(pps_gate_control, GPIO.OUT)
+GPIO.output(pps_gate_control, GPIO.LOW)
 
 
 class rtl_wavetrap(gr.top_block, Qt.QWidget):
@@ -90,7 +97,7 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		# Variables
 		##################################################
 		self.gui_samp_rate = gui_samp_rate = 2400000.0
-		self.gui_gain = gui_gain = 10.0
+		self.gui_gain = gui_gain = 20.0
 		#self.center_freq = freq = 162e6
 		self.center_freq = center_freq = 126.475e6
 		self.variable_low_pass_filter_taps_0 = variable_low_pass_filter_taps_0 = firdes.low_pass(1.0, gui_samp_rate, 10000,30000, window.WIN_HAMMING, 6.76)
@@ -103,7 +110,7 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		self.Probe2 = Probe2 = -100
 		self.wav_file_name = wav_file_name = 'test1.wav'
 		self.last_record_time = last_record_time = 0
-		self.recording = recording = False
+		self.recording_state = recording_state = 'idle'
 		self.min_sig_dB = 100
 
 		##################################################
@@ -450,18 +457,24 @@ class rtl_wavetrap(gr.top_block, Qt.QWidget):
 		if self.sig_dB.level() < self.min_sig_dB:
 			self.min_sig_dB = self.sig_dB.level()
 		#print("SNR:",round(self.sig_dB.level() - self.min_sig_dB,1)," dB")
-		if self.sig_dB.level()>self.min_sig_dB + 10:
+		if self.sig_dB.level()>self.min_sig_dB + 10 and self.recording_state != '1pps':
 			self.last_record_time = time.time()
-			if self.recording == False:
-				self.recording = True
+			if self.recording_state == 'idle':
+				self.recording_state = 'recording'
 				self.set_wav_file_name('recordings/'+str(int(time.time()))+'.wav')
 				self.blocks_wavfile_sink_0.open(self.wav_file_name)
 				self.blocks_selector_0.set_enabled(True)
 				#self.blocks_selector_0.set_output_index(0)  #connect to wav file sink
 				print("should have started a new file " + self.wav_file_name)
 		else:
-			if self.recording == True and time.time()-self.last_record_time > 1:  #1 second release time
-				self.recording = False
+			if self.recording_state == 'recording' and time.time()-self.last_record_time > .5:  #0.5 second release time
+				self.recording_state = '1pps'
+				GPIO.output(pps_gate_control, GPIO.HIGH)
+				print('set GPIO high',time.time())
+			elif self.recording_state == '1pps' and time.time()-self.last_record_time > 1.7:
+				self.recording_state = 'idle'
+				GPIO.output(pps_gate_control, GPIO.LOW)
+				print('set GPIO low',time.time())
 				print("closing file " + self.wav_file_name)
 				self.blocks_selector_0.set_enabled(False)
 				self.blocks_wavfile_sink_0.close()
